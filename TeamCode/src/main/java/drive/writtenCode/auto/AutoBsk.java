@@ -10,6 +10,7 @@ import com.pedropathing.pathgen.Path;
 import com.pedropathing.pathgen.PathChain;
 import com.pedropathing.pathgen.Point;
 import com.pedropathing.util.Constants;
+import com.pedropathing.util.Drawing;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -20,6 +21,7 @@ import drive.writtenCode.RobotMap;
 import drive.writtenCode.controllers.ClawController;
 import drive.writtenCode.controllers.ClawPositionController;
 import drive.writtenCode.controllers.ClawRotateController;
+import drive.writtenCode.controllers.CollectBrakeController;
 import drive.writtenCode.controllers.FourbarController;
 import drive.writtenCode.controllers.LinkageController;
 import drive.writtenCode.controllers.LinkageSlidesController;
@@ -50,7 +52,7 @@ public class AutoBsk extends LinearOpMode {
         START,
         PLACE_PRELOAD,
         PICKUP1, GRAB_PICKUP1, PICKUP2, GRAB_PICKUP2, PICKUP3, GRAB_PICKUP3, END_AUTO,
-        SCORE_PICKUP1, SCORE_PICKUP2, SCORE_PICKUP3, SCORE_INTER1, SCORE_INTER2, SCORE_INTER3, INTER_PRELOAD,PARK;
+        SCORE_PICKUP1, SCORE_PICKUP2, SCORE_PICKUP3, SCORE_INTER1, SCORE_INTER2, SCORE_INTER3, INTER_PRELOAD,PARK, GRAB_PICKUP1_INTER;
     }
     ElapsedTime AutoTimer = new ElapsedTime();
     ElapsedTime TimerLeave = new ElapsedTime();
@@ -70,19 +72,21 @@ public class AutoBsk extends LinearOpMode {
     public static double tunex=0;
     public static double tuney=0;
     final Pose startPose = new Pose(10, 111, Math.toRadians(0));
-    final Pose preloadPose = new Pose(8, 121.5, Math.toRadians(312));
-    final Pose interPreload = new Pose(9.5, 120, Math.toRadians(312));
-    final Pose interPose = new Pose(16,122,Math.toRadians(315));
-    final Pose inter2Pose = new Pose(16,122.7,Math.toRadians(315));
-    final Pose inter3Pose = new Pose(27.2,121.7,Math.toRadians(315));
-    final Pose scorePose = new Pose(9, 125, Math.toRadians(315));
-    final Pose scorePose2 = new Pose(9,125, Math.toRadians(315));
-    final Pose scorePose3 = new Pose(18.5,126, Math.toRadians(315));
-    final Pose pickup1Pose = new Pose(30, 120.5, Math.toRadians(0));
-    final Pose pickup2Pose = new Pose(31.2,128,Math.toRadians(0)); //41 19
-    final Pose pickup3Pose = new Pose(35.5,129,Math.toRadians(50));
+    final Pose preloadPose = new Pose(4, 129, Math.toRadians(312));
+    final Pose interPreload = new Pose(10, 125, Math.toRadians(312));
+    final Pose interPose = new Pose(10,125,Math.toRadians(312));
+    final Pose inter2Pose = new Pose(10,125,Math.toRadians(312)); //9
+    final Pose inter3Pose = new Pose(10,125,Math.toRadians(312));
+    final Pose scorePose = new Pose(5, 129, Math.toRadians(312));
+    final Pose scorePose2 = new Pose(4.5,129, Math.toRadians(312)); //4 129.5
+    final Pose scorePose3 = new Pose(4.5,129, Math.toRadians(312));
+//    final Pose pickup1InterPose = new Pose(29,118,Math.toRadians(0));
+    final Pose pickup1Pose = new Pose(35, 117, Math.toRadians(0));
+    final Pose pickup2Pose = new Pose(35,130,Math.toRadians(0)); //41 19
+    final Pose pickup3PoseInter = new Pose(30,130,Math.toRadians(90));
+    final Pose pickup3Pose = new Pose(52.5,141,Math.toRadians(90));
 
-    final Pose parkPose =new Pose(35,115, Math.toRadians(0));
+    final Pose parkPose =new Pose(35,120, Math.toRadians(270));
 
 
     @Override
@@ -90,22 +94,24 @@ public class AutoBsk extends LinearOpMode {
         RobotMap robot = new RobotMap(hardwareMap);
         DigitalChannel beam = robot.beam;
         ClawController claw = new ClawController(robot);
+        CollectBrakeController brake = new CollectBrakeController(robot);
         ClawPositionController clawPosition = new ClawPositionController(robot);
         ClawRotateController clawRotate = new ClawRotateController(robot);
         FourbarController fourbar = new FourbarController(robot);
         LinkageController linkage = new LinkageController(robot);
         SlidesController slides = new SlidesController(robot);
-        ScoreSystemController scoreSystem = new ScoreSystemController(claw,clawRotate,fourbar,clawPosition);
+        ScoreSystemController scoreSystem = new ScoreSystemController(claw,clawRotate,fourbar,clawPosition,linkage);
         LinkageSlidesController linkageSlides = new LinkageSlidesController(linkage,slides);
 
         Constants.setConstants(FConstants.class, LConstants.class);
         follower = new Follower(hardwareMap);
-        follower.setStartingPose(startPose);
+
         scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
 
         scoreSystem.update(robot.encoderClaw.getVoltage());
         linkageSlides.update();
         claw.update();
+        brake.update();
         clawPosition.update();
         clawRotate.update(ClawRotateController.init_position,0);
         fourbar.update();
@@ -161,7 +167,7 @@ public class AutoBsk extends LinearOpMode {
 
 
         boolean ok=false;
-
+        follower.setStartingPose(startPose);
         STROBOT status = STROBOT.START;
         waitForStart();
         if (isStopRequested()) return;
@@ -173,262 +179,252 @@ public class AutoBsk extends LinearOpMode {
                 case START: {
                     AutoTimer.reset();
                     TimerPlacePreload.reset();
-                    follower.followPath(scorePreloadInter,false);
+                    follower.holdPoint(interPreload);
                     status = STROBOT.INTER_PRELOAD;
                     break;
                 }
                 case INTER_PRELOAD:
                 {
-                    if(!follower.isBusy())
+                    if(TimerPlacePreload.seconds()>0.7)
                     {
-                        follower.followPath(scorePreload);
+                        linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.BSK_HIGH;
+                        follower.holdPoint(preloadPose);
                         status=STROBOT.PLACE_PRELOAD;
                     }
                     break;
                 }
                 case PLACE_PRELOAD: {
-                    if(TimerPlacePreload.seconds()>1.5)
-                    {
-                        linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.BSK_HIGH;
-                    }
-                    if(TimerPlacePreload.seconds() > 2.3)
+                    if(TimerPlacePreload.seconds() >1.7)
                     {
                         scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.SCORE;
                     }
-                    if(TimerPlacePreload.seconds() > 2.5)
+                    if(TimerPlacePreload.seconds() > 2)
                     {
                         claw.currentStatus= ClawController.ClawStatus.OPEN;
                     }
+                    if(TimerPlacePreload.seconds() > 2.2)
+                    {
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
+                    }
                     if(TimerPlacePreload.seconds()>2.7)
                     {
+                        linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
+                    }
+                    if(TimerPlacePreload.seconds()>2.9)
+                    {
+                        TimerPickup.reset();
+                        linkage.currentStatus= LinkageController.LinkageStatus.COLLECT;
+                        slides.currentStatus= SlidesController.SlidesStatus.AUTO;
                         scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
-                        linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.INIT;
-                    }
-                    if(TimerPlacePreload.seconds()>3.15)
-                    {
-                        slides.currentStatus= SlidesController.SlidesStatus.INIT;
-                    }
-                    if(TimerPlacePreload.seconds() > 3.5)
-                    {
-                        status=STROBOT.PARK;
-                        follower.followPath(park);
+                        follower.holdPoint(pickup1Pose);
+                        status=STROBOT.GRAB_PICKUP1;
                     }
                     break;
                 }
+//
                 case GRAB_PICKUP1:
                 {
-                    if(TimerPlacePreload.seconds()>3.72)
-                    {
-                        linkage.currentStatus = LinkageController.LinkageStatus.COLLECT;
-                    }
-                    if(follower.isBusy())
-                    {
-                        TimerPickup.reset();
-                    }
-                    if(!follower.isBusy())
+                    if(TimerPickup.seconds()>1.5 && claw.currentStatus!= ClawController.ClawStatus.CLOSE)
                     {
                         fourbar.currentStatus = FourbarController.FourbarStatus.COLLECT_SUB;
                         clawPosition.currentStatus = ClawPositionController.ClawPositionStatus.COLLECT_SUB;
-                        if (TimerPickup.seconds() > 0.25) {
+                        if (TimerPickup.seconds() > 1.75) {
                             claw.currentStatus = ClawController.ClawStatus.CLOSE;
                         }
-                        if(TimerPickup.seconds() > 0.50)
-                        {
-                            linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
-                            linkage.currentStatus= LinkageController.LinkageStatus.INIT;
-                            scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
-                            TimerScore.reset();
-                            follower.followPath(scorePickup1Inter);
-                            status=STROBOT.SCORE_INTER1;
-                        }
+                    }
+                    if(TimerPickup.seconds()>1.9)
+                    {
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
+                    }
+                    if(TimerPickup.seconds()>2.2)
+                    {
+                        linkage.currentStatus= LinkageController.LinkageStatus.INIT;
+                        slides.currentStatus= SlidesController.SlidesStatus.INIT;
+                    }
+                    if(TimerPickup.seconds()>2.3)
+                    {
+                        follower.holdPoint(interPose);
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
+                        TimerScore.reset();
+                        status=STROBOT.SCORE_INTER1;
                     }
                     break;
                 }
                 case SCORE_INTER1:
                 {
-                    if(follower.isBusy())
+                    if(TimerScore.seconds()>1)
                     {
-                        TimerScore.reset();
-                    }
-                    if(!follower.isBusy())
-                    {
-                        if(TimerScore.seconds()>0.2)
-                        {
-                            follower.followPath(scorePickup1);
-                            TimerScore.reset();
-                            status=STROBOT.SCORE_PICKUP1;
-                        }
+                        follower.holdPoint(scorePose);
                         linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.BSK_HIGH;
+                        status=STROBOT.SCORE_PICKUP1;
                     }
                     break;
                 }
                 case SCORE_PICKUP1:
                 {
-                    if(TimerScore.seconds()>1)
+                    if(TimerScore.seconds()>1.7)
                     {
                         scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.SCORE;
                     }
-                    if(!follower.isBusy() && TimerScore.seconds()>1.3)
+                    if(TimerScore.seconds()>2.1)
                     {
-//                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.FLICK;
                         claw.currentStatus= ClawController.ClawStatus.OPEN;
-                        if(TimerScore.seconds()>1.5)
-                        {
-                            scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
-                        }
-                        if(TimerScore.seconds()>1.7)
-                        {
-                            linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.INIT;
-                        }
-                        if(TimerScore.seconds()>2)
-                        {
-                            TimerLeave.reset();
-                            follower.followPath(pickup2);
-                            status = STROBOT.GRAB_PICKUP2;
-                        }
+                    }
+                    if(TimerScore.seconds() > 2.3)
+                    {
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
+                    }
+                    if(TimerScore.seconds()>2.8)
+                    {
+                        linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
+                    }
+                    if(TimerScore.seconds()>3.1)
+                    {
+                        TimerPickup.reset();
+                        linkage.currentStatus= LinkageController.LinkageStatus.COLLECT;
+                        slides.currentStatus= SlidesController.SlidesStatus.AUTO;
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
+                        follower.holdPoint(pickup2Pose);
+                        status=STROBOT.GRAB_PICKUP2;
                     }
                     break;
                 }
                 case GRAB_PICKUP2:
                 {
-                    if(TimerLeave.seconds()>0.22)
-                    {
-                        slides.currentStatus= SlidesController.SlidesStatus.INIT;
-                        linkage.currentStatus = LinkageController.LinkageStatus.COLLECT;
-
-                    }
-                    if(follower.isBusy())
-                    {
-                        TimerPickup.reset();
-                    }
-                    if(!follower.isBusy() && TimerLeave.seconds()>0.25)
+                    if(TimerPickup.seconds()>1.5 && claw.currentStatus!= ClawController.ClawStatus.CLOSE)
                     {
                         fourbar.currentStatus = FourbarController.FourbarStatus.COLLECT_SUB;
                         clawPosition.currentStatus = ClawPositionController.ClawPositionStatus.COLLECT_SUB;
-                        if (TimerPickup.seconds() > 0.25) {
+                        if (TimerPickup.seconds() > 1.75) {
                             claw.currentStatus = ClawController.ClawStatus.CLOSE;
                         }
-                        if(TimerPickup.seconds() > 0.50)
-                        {
-                            linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
-                            linkage.currentStatus= LinkageController.LinkageStatus.INIT;
-                            scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
-                            TimerScore.reset();
-                            follower.followPath(scorePickup2Inter);
-                            status=STROBOT.SCORE_INTER2;
-                        }
+                    }
+                    if(TimerPickup.seconds()>1.9)
+                    {
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
+                    }
+                    if(TimerPickup.seconds()>2.2)
+                    {
+                        linkage.currentStatus= LinkageController.LinkageStatus.INIT;
+                        slides.currentStatus= SlidesController.SlidesStatus.INIT;
+                    }
+                    if(TimerPickup.seconds()>2.3)
+                    {
+                        follower.holdPoint(inter2Pose);
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
+                        TimerScore.reset();
+                        status=STROBOT.SCORE_INTER2;
                     }
                     break;
                 }
                 case SCORE_INTER2:
                 {
-                    if(follower.isBusy())
+                    if(TimerScore.seconds()>1)
                     {
-                        TimerScore.reset();
-                    }
-                    if(!follower.isBusy())
-                    {
-                        if(TimerScore.seconds()>0.2)
-                        {
-                            follower.followPath(scorePickup2);
-                            TimerScore.reset();
-                            status=STROBOT.SCORE_PICKUP2;
-                        }
+                        follower.holdPoint(scorePose2);
                         linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.BSK_HIGH;
+                        status=STROBOT.SCORE_PICKUP2;
                     }
                     break;
                 }
                 case SCORE_PICKUP2:
                 {
-                    if(TimerScore.seconds()>1)
+                    if(TimerScore.seconds()>1.7)
                     {
                         scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.SCORE;
                     }
-                    if(!follower.isBusy() && TimerScore.seconds()>1.3)
+                    if(TimerScore.seconds()>2.1)
                     {
-//                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.FLICK;
                         claw.currentStatus= ClawController.ClawStatus.OPEN;
-                        if(TimerScore.seconds()>2)
-                        {
-//                            follower.followPath(pickup3);
-                            TimerLeave.reset();
-//                            status = STROBOT.GRAB_PICKUP3;
-                        }
+                    }
+                    if(TimerScore.seconds() > 2.3)
+                    {
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
+                    }
+                    if(TimerScore.seconds()>2.8)
+                    {
+                        linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
+                    }
+                    if(TimerScore.seconds()>3.1 && scoreSystem.currentStatus!= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB)
+                    {
+                        follower.holdPoint(pickup3PoseInter);
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
+                    }
+                    if(TimerScore.seconds()>5)
+                    {
+                        TimerPickup.reset();
+                        follower.holdPoint(pickup3Pose);
+                        status=STROBOT.GRAB_PICKUP3;
                     }
                     break;
                 }
                 case GRAB_PICKUP3:
                 {
-                    if(TimerLeave.seconds()>0.1)
+                    if(TimerPickup.seconds()>0.15)
                     {
-                        linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.INIT;
+                        linkage.currentStatus= LinkageController.LinkageStatus.COLLECT;
+                        slides.currentStatus= SlidesController.SlidesStatus.AUTO;
+                        clawRotate.currentStatus= ClawRotateController.ClawRotateStatus.MINUS2;
                     }
-                    if(TimerLeave.seconds()>0.3)
-                    {
-                        slides.currentStatus= SlidesController.SlidesStatus.INIT;
-                        linkage.currentStatus = LinkageController.LinkageStatus.COLLECT;
-                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
-                        clawRotate.currentStatus= ClawRotateController.ClawRotateStatus.MINUS;
-                    }
-                    if(follower.isBusy())
-                    {
-                        TimerPickup.reset();
-                    }
-                    if(!follower.isBusy())
+                    if (TimerPickup.seconds()>1.5 && claw.currentStatus!= ClawController.ClawStatus.CLOSE)
                     {
                         fourbar.currentStatus = FourbarController.FourbarStatus.COLLECT_SUB;
                         clawPosition.currentStatus = ClawPositionController.ClawPositionStatus.COLLECT_SUB;
-                        if (TimerPickup.seconds() > 0.25) {
+                        if (TimerPickup.seconds() > 1.75) {
                             claw.currentStatus = ClawController.ClawStatus.CLOSE;
                         }
-                        if(TimerPickup.seconds() > 0.50)
-                        {
-                            linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
-                            linkage.currentStatus= LinkageController.LinkageStatus.INIT;
-                            clawRotate.currentStatus= ClawRotateController.ClawRotateStatus.INIT;
-                            scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
-                            TimerScore.reset();
-                            follower.followPath(scorePickup3Inter);
-                            status=STROBOT.SCORE_INTER3;
-//                            status=STROBOT.END_AUTO;
-                        }
+                    }
+                    if(TimerPickup.seconds()>1.9)
+                    {
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
+                    }
+                    if(TimerPickup.seconds()>2.3)
+                    {
+                        linkage.currentStatus= LinkageController.LinkageStatus.INIT;
+                        slides.currentStatus= SlidesController.SlidesStatus.INIT;
+                    }
+                    if(TimerPickup.seconds()>3.3)
+                    {
+                        follower.holdPoint(inter3Pose);
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
+                        TimerScore.reset();
+                        status=STROBOT.SCORE_INTER3;
                     }
                     break;
                 }
                 case SCORE_INTER3:
                 {
-                    if(follower.isBusy())
+                    if(TimerScore.seconds()>2)
                     {
-                        TimerScore.reset();
-                    }
-                    if(!follower.isBusy())
-                    {
-                        if(TimerScore.seconds()>0.2)
-                        {
-                            follower.followPath(scorePickup3);
-                            TimerScore.reset();
-                            status=STROBOT.SCORE_PICKUP3;
-                        }
+                        follower.holdPoint(scorePose3);
                         linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.BSK_HIGH;
+                        status=STROBOT.SCORE_PICKUP3;
                     }
                     break;
                 }
                 case SCORE_PICKUP3:
                 {
-                    if(TimerScore.seconds()>1)
+                    if(TimerScore.seconds()>2.7)
                     {
                         scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.SCORE;
                     }
-                    if(!follower.isBusy() && TimerScore.seconds()>1.3)
+                    if(TimerScore.seconds()>3.1)
                     {
-//                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.FLICK;
                         claw.currentStatus= ClawController.ClawStatus.OPEN;
-                        if(TimerScore.seconds()>2)
-                        {
-//                            follower.followPath(pickup3);
-                            TimerLeave.reset();
-                            status = STROBOT.END_AUTO;
-                        }
+                    }
+                    if(TimerScore.seconds() > 3.3)
+                    {
+                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT_AUTO;
+                    }
+                    if(TimerScore.seconds()>3.8)
+                    {
+                        linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
+                    }
+                    if(TimerScore.seconds()>4.2)
+                    {
+                        TimerPickup.reset();
+                        follower.holdPoint(parkPose);
+                        status=STROBOT.END_AUTO;
                     }
                     break;
                 }
@@ -437,6 +433,7 @@ public class AutoBsk extends LinearOpMode {
             slides.update(slides_current_position,slides_target_position);
             claw.update();
             fourbar.update();
+            brake.update();
             clawPosition.update();
             clawRotate.update(claw_rotate_target, 0);
             scoreSystem.update(robot.encoderClaw.getVoltage());
@@ -444,12 +441,14 @@ public class AutoBsk extends LinearOpMode {
             linkageSlides.update();
             telemetry.addData("status", status);
             telemetry.addData("slidescurrent", slides_current_position);
+            telemetry.addData("linkage_slides", linkageSlides.currentStatus);
             telemetry.addData("clawposition",clawPosition.currentStatus);
-            telemetry.addData("scoresysten",scoreSystem.currentStatus);
+            telemetry.addData("scoresystem",scoreSystem.currentStatus);
             telemetry.addData("Current Traj", follower.getCurrentPath());
             telemetry.addData("beam",beam.getState());
             telemetry.addData("ok", ok);
             telemetry.addData("pose", follower.getPose());
+            Drawing.drawRobot(follower.getPose(),"#4CAF50");
             telemetry.update();
         }
     }

@@ -23,10 +23,10 @@ public class FConstants {
         FollowerConstants.mass = 11;
 
         FollowerConstants.xMovement = 80;
-        FollowerConstants.yMovement = 58.2;
+        FollowerConstants.yMovement = 64;
 
-        FollowerConstants.forwardZeroPowerAcceleration = -58;
-        FollowerConstants.lateralZeroPowerAcceleration = -85;
+        FollowerConstants.forwardZeroPowerAcceleration = -43;
+        FollowerConstants.lateralZeroPowerAcceleration = -73;
 
         FollowerConstants.translationalPIDFCoefficients.setCoefficients(0.1,0,0.02,0);
         FollowerConstants.translationalPIDFFeedForward = 0.015;

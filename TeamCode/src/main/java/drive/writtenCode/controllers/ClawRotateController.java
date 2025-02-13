@@ -11,11 +11,12 @@ public class ClawRotateController {
         MINUS,MINUS2,
         PLUS,PLUS2,
         AUTO_ALIGN,
-        RUNTO;
+        RUNTO, INVERSE;
     }
     public ClawRotateStatus currentStatus = ClawRotateStatus.INIT;
     public ClawRotateStatus previousStatus=null;
-    public static double init_position=0.5;
+    public static double init_position=0.52;
+    public static double inverse = 0;
     public Servo clawRotate = null;
     public ClawRotateController(RobotMap robot) {
         this.clawRotate=robot.clawRotate;
@@ -74,6 +75,11 @@ public class ClawRotateController {
                     {
                         currentStatus=ClawRotateStatus.MINUS2;
                     }
+                    break;
+                }
+                case INVERSE:
+                {
+                    this.clawRotate.setPosition(inverse);
                     break;
                 }
                 case RUNTO:

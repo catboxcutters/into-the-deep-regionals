@@ -16,11 +16,11 @@ public class ClimbController {
     public ClimbController.ClimbStatus previousStatus = null;
 
     private CRServo  hangingRight= null;
-    private CRServo  hangingLeft= null;
+//    private CRServo  hangingLeft= null;
 
     public ClimbController(RobotMap robot)
     {
-        hangingLeft = robot.climbLeft;
+//        hangingLeft = robot.climbLeft;
         hangingRight = robot.climbRight;
     }
     public void update()
@@ -33,19 +33,19 @@ public class ClimbController {
                 case STOP:
                 {
                     hangingRight.setPower(0);
-                    hangingLeft.setPower(0);
+//                    hangingLeft.setPower(0);
                     break;
                 }
                 case UP:
                 {
                     hangingRight.setPower(0.9);
-                    hangingLeft.setPower(-0.9);
+//                    hangingLeft.setPower(-0.9);
                     break;
                 }
                 case DOWN:
                 {
                     hangingRight.setPower(-0.9);
-                    hangingLeft.setPower(0.9);
+//                    hangingLeft.setPower(0.9);
                     break;
                 }
             }

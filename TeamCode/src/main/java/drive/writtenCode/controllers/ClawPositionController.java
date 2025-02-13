@@ -15,8 +15,8 @@ public class ClawPositionController {
         FLICK,
         SCORE_LOW,
         RUNTO,
-        RUNG,
-        RUNG_SIDE_RETRACT, PERP;
+        RUNG,COLLECT_SAMPLE,
+        RUNG_SIDE_RETRACT, PERP, PERIMETER,BACKWARDS,BACKWARDS_SCORE,SAMPLE;
     }
     public ClawPositionStatus currentStatus = ClawPositionStatus.INIT;
     public ClawPositionStatus previousStatus=null;
@@ -24,12 +24,16 @@ public class ClawPositionController {
     public static double collect_position = 0.72; //0.54
     public static double sub_position = 0.06;
     public static double perp_position = 0.45;
-    public static double collect_sub_position = 0.15;
-    public  static  double rung_position = 0.12;
+    public static double collect_sub_position = 0.12;
+    public static double perimeter = 0.45;
+    public  static  double rung_position = 0.18;
     public static  double rung_side_retract = 0.35;
     public static double score = 0.5;
     public static double flick = 0.6;
     public static double score_low = 0.5;
+    public static double backwards = 0.15;
+    public static double sample = 0.55;
+    public static double collect_sample = 0.58;
     public Servo clawPosition = null;
     public ClawPositionController(RobotMap robot) {
         this.clawPosition=robot.clawPosition;
@@ -88,6 +92,31 @@ public class ClawPositionController {
                 case PERP:
                 {
                     this.clawPosition.setPosition(perp_position);
+                    break;
+                }
+                case PERIMETER:
+                {
+                    this.clawPosition.setPosition(perimeter);
+                    break;
+                }
+                case BACKWARDS:
+                {
+                    this.clawPosition.setPosition(backwards);
+                    break;
+                }
+                case BACKWARDS_SCORE:
+                {
+                    this.clawPosition.setPosition(backwards);
+                    break;
+                }
+                case SAMPLE:
+                {
+                    this.clawPosition.setPosition(sample);
+                    break;
+                }
+                case COLLECT_SAMPLE:
+                {
+                    this.clawPosition.setPosition(collect_sample);
                     break;
                 }
             }

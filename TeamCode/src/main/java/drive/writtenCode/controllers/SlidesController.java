@@ -1,9 +1,11 @@
 package drive.writtenCode.controllers;
 
+import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 
 import drive.writtenCode.RobotMap;
 
+@Config
 public class SlidesController {
     public enum SlidesStatus {
         INIT,
@@ -16,19 +18,20 @@ public class SlidesController {
         LOW_RUNG_SCORE,
         HIGH_RUNG,
         RUNTO_H, HIGH_RUNG_SCORE,
-        KILL, DELIVER, HIGH_RUNG_AUTO, PTO, CLIMB
+        KILL, DELIVER, HIGH_RUNG_AUTO, PTO, CLIMB,AUTO
     }
     public SlidesStatus currentStatus = SlidesStatus.INIT;
     public SlidesStatus previousStatus = null;
     public static int init_position = 0;
     public static int collect_position = -16000;
-    public static int bsk_low_position = -33000;
+    public static int bsk_low_position = -30000;
     public static int bsk_mid_position = -900;
     public static int bsk_high_position = -60500;
     public static int low_rung = -7000;
-    public static int high_rung = -28300;
+    public static int high_rung = -31780;
     public static int low_rung_score = -6000;
-    public static int climb = -22000;
+    public static int climb = -24000;
+    public static int auto = -700;
     public static int high_rung_score = -18500;
     public static int deliver = -32000;
     public int current_position = init_position;
@@ -47,9 +50,9 @@ public class SlidesController {
     public static double Kp = 0.00025;//0.00325
     public static double Ki = 0.0001;//0.0022
     public static double Kd = 0; //0.001
-    public static double KpR = 0.00017;
-    public static double KiR = 0.00012;
-    public static double KdR = 0;
+    public static double KpR = 0.0001;
+    public static double KiR = 0;
+    public static double KdR = 0.001;
     public static double PowerCap = 1;
     public static double maxSpeed = 1;
 
@@ -172,6 +175,13 @@ public class SlidesController {
                 {
                     PID=slidesPID;
                     PID.targetValue = climb;
+                    break;
+                }
+                case AUTO:
+                {
+                    PID=slidesPID_horizontal;
+                    PID.targetValue=auto;
+                    break;
                 }
                 case PTO:
                 {

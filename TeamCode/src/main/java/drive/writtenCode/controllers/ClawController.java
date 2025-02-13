@@ -11,13 +11,15 @@ public class ClawController {
         OPEN,
         CLOSE,
         CLOSE_SPECIMEN,
+        SAMPLE
     }
     public ClawStatus currentStatus = ClawStatus.OPEN;
     public ClawStatus previousStatus=null;
 
-    public static double claw_open=0.5;
-    public static double claw_closed = 0.76;
-    public static double claw_closed_specimen = 0.78;
+    public static double claw_open=0.55;
+    public static double claw_closed = 0.785;
+    public static double claw_closed_specimen = 0.79;
+    public static double sample = 0.58;
     public Servo claw = null;
 
 
@@ -43,6 +45,11 @@ public class ClawController {
                 case CLOSE_SPECIMEN:
                 {
                     this.claw.setPosition(claw_closed_specimen);
+                    break;
+                }
+                case SAMPLE:
+                {
+                    this.claw.setPosition(sample);
                     break;
                 }
             }

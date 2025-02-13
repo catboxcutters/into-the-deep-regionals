@@ -30,15 +30,16 @@ public class RobotMap {
     public DigitalChannel beam;
     public Camera camera;
     public Servo PTOLeft, PTORight;
-    public CRServo climbLeft, climbRight;
+    public Servo laser;
+    public CRServo climbRight;
     public DcMotorEx encoderSlides;
     public DcMotorEx encoderLinkage;
 //    public Servo laser;
 
     public AnalogInput distance_sensor1, distance_sensor2;
     public AnalogInput encoderClaw;
-    public RevBlinkinLedDriver laser;
     public DigitalChannel laser_digital;
+    public Servo collect_brake;
 
     public RobotMap(HardwareMap Init)
     {
@@ -101,13 +102,14 @@ public class RobotMap {
 
         encoderClaw = Init.get(AnalogInput.class, "encoderClaw");
 
-        climbLeft = Init.get(CRServo.class, "climbLeft");
+        laser = Init.get(Servo.class, "climbLeft");
         climbRight = Init.get(CRServo.class, "climbRight");
 
+        collect_brake = Init.get(Servo.class, "brake");
         beam = Init.get(DigitalChannel.class, "beam");
         laser_digital = Init.get(DigitalChannel.class, "laser_digital");
 //        laser_digital.setMode(DigitalChannel.Mode.OUTPUT);
-        laser = Init.get(RevBlinkinLedDriver.class, "laser");
+//        laser = Init.get(RevBlinkinLedDriver.class, "laser");
 //        camera = Init.get(Camera.class, "camera");
     }
 }

@@ -17,22 +17,26 @@ public class FourbarController {
         RUNG_SIDE_RETRACT,
         SCORE,
         SCORE_LOW,
-        FEED, RUNG_PARA, SUB_INTER;
+        FEED, RUNG_PARA, SUB_INTER,PERIMETER,BACKWARDS_SCORE,BACKWARDS,SAMPLE;
     }
     public FourbarStatus currentStatus = FourbarStatus.INIT;
     public FourbarStatus previousStatus=null;
     public static double init_position=0.84;
-    public static double rung_position = 0.305;
+    public static double rung_position = 0.27;
+    public static double perimeter = 0.74;
     public static double sub_inter_position = 0.51;
     public static double sub_position = 0.45;
     public static double sub_collect_position = 0.39;
-    public static double rung_side_retract_position = 0.52;
+    public static double rung_side_retract_position = 0.49;
     public static double collect_position = 0.88;
     public static double score_position = 0.64;
     public static double score_low = 0.64;
     public static double rung_para_position = 0.09;
+    public static double back_score_position = 0.26;
+    public static double back_position = 0.40;
     public static double flick = 0.47;
     public static double feed = 0.7;
+    public static double sample = 0.91;
     public Servo fourbarLeft = null, fourbarRight = null;
     public FourbarController(RobotMap robot) {
         this.fourbarLeft=robot.fourbarLeft;
@@ -114,6 +118,30 @@ public class FourbarController {
                 {
                     this.fourbarLeft.setPosition(rung_side_retract_position);
                     this.fourbarRight.setPosition(rung_side_retract_position);
+                    break;
+                }
+                case PERIMETER:
+                {
+                    this.fourbarLeft.setPosition(perimeter);
+                    this.fourbarRight.setPosition(perimeter);
+                    break;
+                }
+                case BACKWARDS_SCORE:
+                {
+                    this.fourbarLeft.setPosition(back_score_position);
+                    this.fourbarRight.setPosition(back_score_position);
+                    break;
+                }
+                case BACKWARDS:
+                {
+                    this.fourbarLeft.setPosition(back_position);
+                    this.fourbarRight.setPosition(back_position);
+                    break;
+                }
+                case SAMPLE:
+                {
+                    this.fourbarLeft.setPosition(sample);
+                    this.fourbarRight.setPosition(sample);
                     break;
                 }
             }

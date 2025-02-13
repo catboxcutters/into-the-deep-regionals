@@ -2,6 +2,7 @@ package drive.writtenCode;
 
 import android.transition.Slide;
 
+import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -16,6 +17,7 @@ import drive.writtenCode.controllers.ClawController;
 import drive.writtenCode.controllers.ClawPositionController;
 import drive.writtenCode.controllers.ClawRotateController;
 import drive.writtenCode.controllers.ClimbController;
+import drive.writtenCode.controllers.CollectBrakeController;
 import drive.writtenCode.controllers.DistanceSensorsController;
 import drive.writtenCode.controllers.FourbarController;
 import drive.writtenCode.controllers.LinkageController;
@@ -25,7 +27,7 @@ import drive.writtenCode.controllers.ScoreSystemController;
 import drive.writtenCode.controllers.SlidesController;
 import drive.writtenCode.controllers.CameraController;
 
-
+@Config
 @TeleOp(name="TeleOpCode", group="Linear OpMode")
 public class TeleOpCode extends LinearOpMode {
     public void setMotorRunningMode(DcMotor leftFront, DcMotor leftBack, DcMotor rightFront,
@@ -71,6 +73,8 @@ public class TeleOpCode extends LinearOpMode {
     ElapsedTime BeamTimer = new ElapsedTime();
     ElapsedTime SlidesTimer = new ElapsedTime();
     ElapsedTime timer_release = new ElapsedTime();
+    ElapsedTime laser_timer = new ElapsedTime();
+    public static double laser_inactive_position=0.44, laser_active_position=0.4;
 
     RevBlinkinLedDriver.BlinkinPattern off= RevBlinkinLedDriver.BlinkinPattern.BLACK;
     RevBlinkinLedDriver.BlinkinPattern on= RevBlinkinLedDriver.BlinkinPattern.GREEN;
@@ -93,13 +97,14 @@ public class TeleOpCode extends LinearOpMode {
         telemetry.update();
         RobotMap robot= new RobotMap(hardwareMap);
 
+        CollectBrakeController collectBrakeController = new CollectBrakeController(robot);
         LinkageController linkageController = new LinkageController(robot);
         SlidesController slidesController = new SlidesController(robot);
         FourbarController fourbarController = new FourbarController(robot);
         ClawRotateController clawRotateController = new ClawRotateController(robot);
         ClawController clawController = new ClawController(robot);
         ClawPositionController clawPositionController = new ClawPositionController(robot);
-        ScoreSystemController scoreSystemController = new ScoreSystemController(clawController, clawRotateController,fourbarController,clawPositionController);
+        ScoreSystemController scoreSystemController = new ScoreSystemController(clawController, clawRotateController,fourbarController,clawPositionController, linkageController);
         LinkageSlidesController linkageSlidesController = new LinkageSlidesController(linkageController, slidesController);
 //        ClimbController climbController = new ClimbController(robot);
         DigitalChannel beam = robot.beam;
@@ -111,6 +116,7 @@ public class TeleOpCode extends LinearOpMode {
         fourbarController.update();
         clawPositionController.update();
         clawController.update();
+        collectBrakeController.update();
         scoreSystemController.update(robot.encoderClaw.getVoltage());
         linkageSlidesController.update();
 //        climbController.update();
@@ -149,16 +155,13 @@ public class TeleOpCode extends LinearOpMode {
         Gamepad previousGamepad2 = new Gamepad();
 //        cameraController.startCamera();
         ptoController.currentStatus= PTOController.PTOStatus.INACTIVE;
-        robot.laser.setPattern(off);
 
+        robot.laser.setPosition(laser_inactive_position);
         waitForStart();
         GlobalTimer.reset();
         while(opModeIsActive())
         {
             if(isStopRequested()) return;
-            robot.laser.setPattern(on);
-//            robot.laser_digital.setState(true);
-//            robot.laser_digital.setState(true);
             int slides_current_position = robot.linkage.getCurrentPosition();
             int linkage_current_position = robot.encoderLinkage.getCurrentPosition();
             robotCentricDrive(leftFront,leftBack,rightFront,rightBack,gamepad1.left_trigger,gamepad1.right_trigger, rate, rot_rate, strafe_brake);
@@ -236,15 +239,32 @@ public class TeleOpCode extends LinearOpMode {
                     case INIT:
                         clawController.currentStatus = ClawController.ClawStatus.OPEN;
                         linkageSlidesController.currentStatus = LinkageSlidesController.LinkageSlidesStatus.LOWER_LINKAGE;
-                        scoreSystemController.currentStatus= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB;
+                        scoreSystemController.currentStatus= ScoreSystemController.ScoreSystemStatus.START_COLLECT_FROM_SUB;
                         rate = 0.4;
+                        rot_rate=1;
                         break;
                     case EXTEND_SLIDES:
                         scoreSystemController.timer.reset();
                         SlidesTimer.reset();
                         ok_rung = true;
                         scoreSystemController.currentStatus = ScoreSystemController.ScoreSystemStatus.LOWER_FOURBAR_SUB_AUTO_ALIGN_RUNG;
-                        rate = 1;
+                        break;
+                }
+            }
+            if(currentGamepad1.x && !previousGamepad1.x)
+            {
+                switch(linkageSlidesController.currentStatus){
+                    case INIT:
+                        clawController.currentStatus = ClawController.ClawStatus.OPEN;
+                        linkageSlidesController.currentStatus = LinkageSlidesController.LinkageSlidesStatus.LOWER_LINKAGE;
+                        scoreSystemController.currentStatus= ScoreSystemController.ScoreSystemStatus.START_COLLECT_FROM_SUB;
+                        rate = 0.4;
+                        rot_rate=1;
+                        break;
+                    case EXTEND_SLIDES:
+                        scoreSystemController.timer.reset();
+                        ok=false;
+                        scoreSystemController.currentStatus = ScoreSystemController.ScoreSystemStatus.LOWER_FOURBAR_SUB_FEED;
                         break;
                 }
             }
@@ -254,7 +274,7 @@ public class TeleOpCode extends LinearOpMode {
                 time_to_slides = 0.5;
                 ok=false;
             }
-            if(SlidesTimer.seconds()>0.5 && ok_rung==true)
+            if(SlidesTimer.seconds()>0.9 && ok_rung==true && clawController.currentStatus== ClawController.ClawStatus.CLOSE && scoreSystemController.currentStatus!= ScoreSystemController.ScoreSystemStatus.COLLECT_FROM_SUB)
             {
                 linkageSlidesController.currentStatus = LinkageSlidesController.LinkageSlidesStatus.INIT_INTER_RUNG;
                 linkageSlidesController.timer_inter.reset();
@@ -482,6 +502,15 @@ public class TeleOpCode extends LinearOpMode {
                           }
                }
             }
+            if(linkageController.currentStatus!= LinkageController.LinkageStatus.COLLECT)
+            {
+                laser_timer.reset();
+                robot.laser.setPosition(laser_inactive_position);
+            }
+            if(linkageController.currentStatus== LinkageController.LinkageStatus.COLLECT && laser_timer.seconds()>0.7)
+            {
+                robot.laser.setPosition(laser_active_position);
+            }
             if(currentGamepad2.right_trigger>0.2 && previousGamepad2.right_trigger<0.2)
             {
                 switch(fourbarController.currentStatus)
@@ -535,7 +564,7 @@ public class TeleOpCode extends LinearOpMode {
             }
             if(use_encoder==false)
             {
-                encoder_position = 2.58;
+                encoder_position = 3;
             }
             else
             {
@@ -545,6 +574,7 @@ public class TeleOpCode extends LinearOpMode {
             slidesController.update(slides_current_position,slides_target_position);
             clawController.update();
             fourbarController.update();
+            collectBrakeController.update();
             clawPositionController.update();
             clawRotateController.update(claw_rotate_target, 0);
             scoreSystemController.update(encoder_position);

@@ -1,12 +1,15 @@
 package drive.writtenCode.auto;
 
 
+import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.BASKET;
+import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.BASKET_INTER;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.DELIVER_PICKUP1;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.DELIVER_PICKUP2;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.DELIVER_PICKUP3;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.END_AUTO;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.FAILSAFE_BACK;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.FAILSAFE_FORTH;
+import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.GRAB_PICKUP2;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.GRAB_SPECIMEN1;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.GRAB_SPECIMEN2;
 import static drive.writtenCode.auto.AutoSpecimenPush.STROBOT.GRAB_SPECIMEN3;
@@ -42,6 +45,7 @@ import drive.writtenCode.RobotMap;
 import drive.writtenCode.controllers.ClawController;
 import drive.writtenCode.controllers.ClawPositionController;
 import drive.writtenCode.controllers.ClawRotateController;
+import drive.writtenCode.controllers.CollectBrakeController;
 import drive.writtenCode.controllers.FourbarController;
 import drive.writtenCode.controllers.LinkageController;
 import drive.writtenCode.controllers.LinkageSlidesController;
@@ -84,7 +88,7 @@ public class AutoSpecimenPush extends LinearOpMode {
         START,
         PLACE_PRELOAD,
         PICKUP1, GRAB_PICKUP1, DELIVER_PICKUP1, PICKUP2, DELIVER_PICKUP2, GRAB_PICKUP2, PICKUP3, GRAB_PICKUP3, DELIVER_PICKUP3, END_AUTO
-        ,SPECIMEN1,GRAB_SPECIMEN1, GRAB_SPECIMEN2, SCORE_SPECIMEN2, SPECIMEN2, SPECIMEN3, GRAB_SPECIMEN3, SCORE_SPECIMEN3, SPECIMEN4, GRAB_SPECIMEN4, SCORE_SPECIMEN4, FAILSAFE, FAILSAFE_BACK, FAILSAFE_FORTH, SCORE_SPECIMEN1
+        ,SPECIMEN1,GRAB_SPECIMEN1, GRAB_SPECIMEN2, SCORE_SPECIMEN2, SPECIMEN2, SPECIMEN3, GRAB_SPECIMEN3, SCORE_SPECIMEN3, SPECIMEN4, GRAB_SPECIMEN4, SCORE_SPECIMEN4, FAILSAFE, FAILSAFE_BACK, FAILSAFE_FORTH, BASKET, BASKET_INTER, SCORE_SPECIMEN1
     }
     ElapsedTime AutoTimer = new ElapsedTime();
     ElapsedTime TimerLeave = new ElapsedTime();
@@ -93,8 +97,8 @@ public class AutoSpecimenPush extends LinearOpMode {
     ElapsedTime TimerDeliver = new ElapsedTime();
     ElapsedTime TimerScore = new ElapsedTime();
     ElapsedTime TimerFailsafe = new ElapsedTime();
-    private double time_place_preload = 1.5;
-    private double time_leave_preload = 0.4;
+    private double time_place_preload = 1.2;
+    private double time_leave_preload = 0.2;
     private Follower follower;
 
     int linkage_target_position = 0;
@@ -102,12 +106,12 @@ public class AutoSpecimenPush extends LinearOpMode {
     int slides_target_position = 0;
 
     private Path specimen1,specimen4,specimen4Score,specimen3,specimen3Score,specimen2,specimen2Score,specimen1Score,scorePreload,grabPickup1,deliver1,grabPickup2,deliver2,grabPickup3,deliver3,park;
-    private Path failsafe1_back, failsafe1_forth, failsafe2_back, failsafe2_forth, failsafe3_back, failsafe3_forth, failsafe4_back, failsafe4_forth;
-    private PathChain pickup1_chain, pickup2_chain, pickup3_chain;
+    private Path basketInter, basket,failsafe1_back, failsafe1_forth, failsafe2_back, failsafe2_forth, failsafe3_back, failsafe3_forth, failsafe4_back, failsafe4_forth;
+    private PathChain pickup1_chain, pickup2_chain, pickup3_chain, basket_chain;
     public static double tunex=0;
     public static double tuney=0;
     final Pose startPose = new Pose(10, 63, Math.toRadians(0));
-    final Pose preloadPose = new Pose(39.5, 74, Math.toRadians(0)); //39.8
+    final Pose preloadPose = new Pose(43,78, Math.toRadians(0)); //39.8
     final Pose pickup1Pose = new Pose(52, 33.5, Math.toRadians(0)); //52.7
     //    final Point pickup1Point = new Point(28, 47, Point.CARTESIAN);
     final Point pickup1Point = new Point(18, 32, Point.CARTESIAN);
@@ -118,51 +122,55 @@ public class AutoSpecimenPush extends LinearOpMode {
     final Pose deliver2Pose = new Pose(21,8,Math.toRadians(0));
     final Point deliver2Point = new Point(59, 8, Point.CARTESIAN);
 
-    final Pose pickup3Pose = new Pose(53.5,14.5,Math.toRadians(0)); //53
-    final Pose deliver3Pose = new Pose(20.6,6.5,Math.toRadians(0));
+    final Pose pickup3Pose = new Pose(53.5,14,Math.toRadians(0)); //53
+    final Pose deliver3Pose = new Pose(20.6,6,Math.toRadians(0));
     final Point deliver3Point = new Point(70, 2.6, Point.CARTESIAN);
 
-    final Pose failsafe_pose1 = new Pose(22,34.3,Math.toRadians(0));
-    final Pose specimen1Pose = new Pose(11.8,34,Math.toRadians(0));
+    final Pose failsafe_pose1 = new Pose(22,32.5,Math.toRadians(0));
+    final Pose specimen1Pose = new Pose(13.1,32.5,Math.toRadians(0));
     //    final Point specimen1Point1 = new Point(31, 21, Point.CARTESIAN);
     final Point specimen1Point1 = new Point(34.3, 39, Point.CARTESIAN);
-    final Point specimen1Point2 = new Point(28, 34, Point.CARTESIAN);
+    final Point specimen1Point2 = new Point(28, 32.5, Point.CARTESIAN);
 
 
-    final Pose specimen1ScorePose = new Pose(40, 70, Math.toRadians(0));
+    final Pose specimen1ScorePose = new Pose(42.5 , 76, Math.toRadians(0));
 
     final Pose failsafe_pose2 = new Pose(22,34,Math.toRadians(0));
-    final Pose specimen2Pose = new Pose(11.1,32.5,Math.toRadians(0));
+    final Pose specimen2Pose = new Pose(11.4,32.5,Math.toRadians(0)); //11.4
     final Point specimen2Point1 = new Point(28, 52, Point.CARTESIAN);
     final Point specimen2Point2 = new Point(51, 32.5, Point.CARTESIAN);
-    final Pose specimen2ScorePose = new Pose(40.5, 68.5, Math.toRadians(0));
+    final Pose specimen2ScorePose = new Pose(43, 74, Math.toRadians(0));
 
     final Pose failsafe_pose3 = new Pose(22,32.5,Math.toRadians(0));
-    final Pose specimen3Pose = new Pose(11.2,32.7,Math.toRadians(0));
+    final Pose specimen3Pose = new Pose(11.4,32.7,Math.toRadians(0)); //11.4
     final Point specimen3Point1 = new Point(28, 52, Point.CARTESIAN);
     final Point specimen3Point2 = new Point(51, 32.7, Point.CARTESIAN);
-    final Pose specimen3ScorePose = new Pose(40.5, 67.5, Math.toRadians(0));
+    final Pose specimen3ScorePose = new Pose(43, 72, Math.toRadians(0));
 
     final Pose failsafe_pose4 = new Pose(22,32.5,Math.toRadians(0));
-    final Pose specimen4Pose = new Pose(11.2,32.7,Math.toRadians(0));
+    final Pose specimen4Pose = new Pose(11.4,32.7,Math.toRadians(0));//11.4
     final Point specimen4Point1 = new Point(28, 52, Point.CARTESIAN);
     final Point specimen4Point2 = new Point(51, 32.7, Point.CARTESIAN);
-    final Pose specimen4ScorePose = new Pose(40.5, 65.5, Math.toRadians(0));
+    final Pose specimen4ScorePose = new Pose(43, 71, Math.toRadians(0));
 
     final Pose parkPose =new Pose(13,32.4, Math.toRadians(0));
+    final Pose samplePose = new Pose(14,27,Math.toRadians(45));
+    final Pose basketPoseInter = new Pose(14,80, Math.toRadians(0));
+    final Pose basketPose = new Pose(10, 121.5, Math.toRadians(312));
 
 
     @Override
     public void runOpMode() throws InterruptedException {
         RobotMap robot = new RobotMap(hardwareMap);
         DigitalChannel beam = robot.beam;
+        CollectBrakeController brake = new CollectBrakeController(robot);
         ClawController claw = new ClawController(robot);
         ClawPositionController clawPosition = new ClawPositionController(robot);
         ClawRotateController clawRotate = new ClawRotateController(robot);
         FourbarController fourbar = new FourbarController(robot);
         LinkageController linkage = new LinkageController(robot);
         SlidesController slides = new SlidesController(robot);
-        ScoreSystemController scoreSystem = new ScoreSystemController(claw,clawRotate,fourbar,clawPosition);
+        ScoreSystemController scoreSystem = new ScoreSystemController(claw,clawRotate,fourbar,clawPosition,linkage);
         LinkageSlidesController linkageSlides = new LinkageSlidesController(linkage,slides);
 
         Constants.setConstants(FConstants.class, LConstants.class);
@@ -177,6 +185,7 @@ public class AutoSpecimenPush extends LinearOpMode {
         clawRotate.update(ClawRotateController.init_position,0);
         fourbar.update();
         follower.update();
+        brake.update();
         linkage.update(LinkageController.init_position,linkage_target_position);
         slides.update(SlidesController.init_position,slides_target_position);
 
@@ -235,6 +244,7 @@ public class AutoSpecimenPush extends LinearOpMode {
                 new Point(specimen2Pose)
         ));
         specimen2.setLinearHeadingInterpolation(specimen1ScorePose.getHeading(), specimen2Pose.getHeading());
+//        specimen2.setZeroPowerAccelerationMultiplier(2);
 
         specimen2Score=new Path(new BezierLine(new Point(specimen2Pose), new Point(specimen2ScorePose)));
         specimen2Score.setLinearHeadingInterpolation(specimen2Pose.getHeading(), specimen2ScorePose.getHeading());
@@ -246,6 +256,7 @@ public class AutoSpecimenPush extends LinearOpMode {
                 new Point(specimen3Pose)
         ));
         specimen3.setLinearHeadingInterpolation(specimen2ScorePose.getHeading(), specimen3Pose.getHeading());
+//        specimen3.setZeroPowerAccelerationMultiplier(2);
 
         specimen3Score=new Path(new BezierLine(new Point(specimen3Pose), new Point(specimen3ScorePose)));
         specimen3Score.setLinearHeadingInterpolation(specimen3Pose.getHeading(), specimen3ScorePose.getHeading());
@@ -257,9 +268,12 @@ public class AutoSpecimenPush extends LinearOpMode {
                 new Point(specimen4Pose)
         ));
         specimen4.setLinearHeadingInterpolation(specimen3ScorePose.getHeading(), specimen4Pose.getHeading());
+//        specimen4.setZeroPowerAccelerationMultiplier(2);
 
         specimen4Score=new Path(new BezierLine(new Point(specimen4Pose), new Point(specimen4ScorePose)));
         specimen4Score.setLinearHeadingInterpolation(specimen4Pose.getHeading(), specimen4ScorePose.getHeading());
+
+
 
         failsafe1_back = new Path(new BezierLine(new Point(specimen1Pose), new Point(failsafe_pose1))); failsafe1_back.setConstantHeadingInterpolation(specimen1Pose.getHeading());
         failsafe1_forth = new Path(new BezierLine(new Point(failsafe_pose1), new Point(specimen1Pose))); failsafe1_forth.setConstantHeadingInterpolation(specimen1Pose.getHeading());
@@ -286,7 +300,8 @@ public class AutoSpecimenPush extends LinearOpMode {
                 case START: {
                     AutoTimer.reset();
                     TimerPlacePreload.reset();
-                    follower.followPath(scorePreload,true);
+//                    follower.followPath(scorePreload,true);
+                    follower.holdPoint(preloadPose);
                     scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.RUNG;
 //                    linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG;
                     status = STROBOT.PLACE_PRELOAD;
@@ -364,7 +379,7 @@ public class AutoSpecimenPush extends LinearOpMode {
                     {
                         follower.setMaxPower(0.8);
                     }
-                    if(!follower.isBusy() || (follower.getPose().getX()<deliver3Pose.getX()+0.5 && TimerDeliver.seconds()>1.7))
+                    if(follower.getPose().getX()<deliver3Pose.getX()+1.5 && TimerDeliver.seconds()>1)
                     {
                         TimerLeave.reset();
                         follower.setMaxPower(1);
@@ -386,24 +401,25 @@ public class AutoSpecimenPush extends LinearOpMode {
                 }
                 case GRAB_SPECIMEN1:
                 {
-                    if(beam.getState()==false && follower.getPose().getY()>25)
+                    if(beam.getState()==false && TimerLeave.seconds()>0.7)
                     {
                         if(ok==false) {
                             scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.LOWER_FOURBAR;
                             TimerLeave.reset();
                             ok=true;
                         }
-                        if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.15)
-                        {
-                            status = SCORE_SPECIMEN1;
-                            ok=false;
-                            follower.followPath(specimen1Score);
-                            TimerScore.reset();
-                        }
                     }
-                    else if(!follower.isBusy() && beam.getState()==true && TimerLeave.seconds()>2.5 && claw.currentStatus == ClawController.ClawStatus.OPEN)
+                    else if(beam.getState()==true && TimerLeave.seconds()>2.5 && claw.currentStatus == ClawController.ClawStatus.OPEN)
                     {
                         status=FAILSAFE_BACK;
+                    }
+                    if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.4)
+                    {
+                        status = SCORE_SPECIMEN1;
+                        ok=false;
+                        follower.holdPoint(specimen1ScorePose);
+//                            follower.followPath(specimen1Score);
+                        TimerScore.reset();
                     }
                     break;
                 }
@@ -415,13 +431,14 @@ public class AutoSpecimenPush extends LinearOpMode {
                         linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG;
                         ok=true;
                     }
-                    if(!follower.isBusy() || (TimerScore.seconds()>1.8 && follower.getPose().getX()>specimen1ScorePose.getX()+0.35 && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG))
+                    if((TimerScore.seconds()>1.5 && follower.getPose().getX()>specimen1ScorePose.getX()-1 && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG)
+                    || TimerScore.seconds()>1.7)
                     {
                         linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE;
                         scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.OPEN_RUNG;
                         TimerLeave.reset();
                     }
-                    if(!follower.isBusy()
+                    if(TimerScore.seconds()>1.8
                             && linkageSlides.currentStatus== LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE
                             )
                     {
@@ -449,25 +466,23 @@ public class AutoSpecimenPush extends LinearOpMode {
                             TimerLeave.reset();
                             ok=true;
                         }
-                        if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.15)
-                        {
-                            status = SCORE_SPECIMEN2;
-                            ok=false;
-                            follower.followPath(specimen2Score);
-                            TimerScore.reset();
-                        }
                     }
                     else if(!follower.isBusy() && beam.getState()==true && TimerLeave.seconds()>2.5 && claw.currentStatus == ClawController.ClawStatus.OPEN)
                     {
                         status=FAILSAFE_BACK;
                     }
-                    if(TimerLeave.seconds()>0.3 && linkageSlides.currentStatus!= LinkageSlidesController.LinkageSlidesStatus.INIT)
+                    if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.4)
                     {
-                        linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.INIT;
-                        scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.INIT;
+                        status = SCORE_SPECIMEN2;
+                        ok=false;
+                        follower.holdPoint(specimen2ScorePose);
+                        TimerScore.reset();
                     }
-
-
+                    if(TimerLeave.seconds()>0.3 && linkageSlides.currentStatus!= LinkageSlidesController.LinkageSlidesStatus.INIT) {
+                        linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.INIT;
+                        scoreSystem.currentStatus = ScoreSystemController.ScoreSystemStatus.INIT;
+                    }
+                    telemetry.addData("EASTERN FOXES - CONTROL 1 AWARD", true );
                     break;
                 }
                 case SCORE_SPECIMEN2:
@@ -478,15 +493,16 @@ public class AutoSpecimenPush extends LinearOpMode {
                         linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG;
                         ok=true;
                     }
-                    if(!follower.isBusy() || (TimerScore.seconds()>1.8 && follower.getPose().getX()>specimen2ScorePose.getX()+0.35 && linkageSlides.currentStatus== LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG))
+                    if((TimerScore.seconds()>1.5 && follower.getPose().getX()>specimen2ScorePose.getX()-1 && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG)
+                            || TimerScore.seconds()>1.7)
                     {
                         linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE;
                         scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.OPEN_RUNG;
                         TimerLeave.reset();
                     }
-                    if(!follower.isBusy()
+                    if(TimerScore.seconds()>1.9
                             && linkageSlides.currentStatus== LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE
-                            )
+                    )
                     {
                         ok=false;
                         status=SPECIMEN3;
@@ -518,19 +534,18 @@ public class AutoSpecimenPush extends LinearOpMode {
                             TimerLeave.reset();
                             ok=true;
                         }
-                        if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.15)
-                        {
-                            status = SCORE_SPECIMEN3;
-                            ok=false;
-                            follower.followPath(specimen3Score);
-                            TimerScore.reset();
-                        }
                     }
                     else if(!follower.isBusy() && beam.getState()==true && TimerLeave.seconds()>2.5 && claw.currentStatus == ClawController.ClawStatus.OPEN)
                     {
                         status=FAILSAFE_BACK;
                     }
-
+                    if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.4)
+                    {
+                        status = SCORE_SPECIMEN3;
+                        ok=false;
+                        follower.holdPoint(specimen3ScorePose);
+                        TimerScore.reset();
+                    }
                     break;
                 }
                 case SCORE_SPECIMEN3:
@@ -541,19 +556,20 @@ public class AutoSpecimenPush extends LinearOpMode {
                         linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG;
                         ok=true;
                     }
-                    if(!follower.isBusy() || (TimerScore.seconds()>1.8 && follower.getPose().getX()>specimen3ScorePose.getX()+0.35 && linkageSlides.currentStatus== LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG))
+                    if((TimerScore.seconds()>1.3 && follower.getPose().getX()>specimen3ScorePose.getX()-1 && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG)
+                            || TimerScore.seconds()>1.7)
                     {
                         linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE;
                         scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.OPEN_RUNG;
                         TimerLeave.reset();
                     }
-                    if(!follower.isBusy()
+                    if(TimerScore.seconds()>1.5
                             && linkageSlides.currentStatus== LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE
-                            )
+                    )
                     {
                         ok=false;
-                        TimerLeave.reset();
                         status=SPECIMEN4;
+                        TimerLeave.reset();
                     }
                     break;
                 }
@@ -580,17 +596,17 @@ public class AutoSpecimenPush extends LinearOpMode {
                             TimerLeave.reset();
                             ok=true;
                         }
-                        if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.15)
-                        {
-                            status = SCORE_SPECIMEN4;
-                            ok=false;
-                            follower.followPath(specimen4Score);
-                            TimerScore.reset();
-                        }
                     }
                     if(!follower.isBusy() && beam.getState()==true && TimerLeave.seconds()>2)
                     {
 //                        status=FAILSAFE_BACK;
+                    }
+                    if(claw.currentStatus == ClawController.ClawStatus.CLOSE_SPECIMEN && TimerLeave.seconds()>0.4)
+                    {
+                        status = SCORE_SPECIMEN4;
+                        ok=false;
+                        follower.holdPoint(specimen4ScorePose);
+                        TimerScore.reset();
                     }
                     break;
                 }
@@ -602,23 +618,43 @@ public class AutoSpecimenPush extends LinearOpMode {
                         linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG;
                         ok=true;
                     }
-                    if(!follower.isBusy() || (TimerScore.seconds()>1.8 && follower.getPose().getX()>specimen4ScorePose.getX()+0.35 && linkageSlides.currentStatus== LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG))
+                    if((TimerScore.seconds()>1.3 && follower.getPose().getX()>specimen4ScorePose.getX()-1 && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG)
+                            || TimerScore.seconds()>1.7)
                     {
                         linkageSlides.currentStatus= LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE;
                         scoreSystem.currentStatus= ScoreSystemController.ScoreSystemStatus.OPEN_RUNG;
-                        TimerLeave.reset();
                     }
-                    if(follower.getPose().getX() < 30   && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE && TimerScore.seconds()>2.3)
+                    if(follower.getPose().getX() < 35   && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE && TimerScore.seconds()>1.7)
                     {
                         ok=false;
                         linkageSlides.currentStatus = LinkageSlidesController.LinkageSlidesStatus.INIT;
                         status=END_AUTO;
+
                     }
-                    else if(!follower.isBusy()  && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE)
+                    else if(!follower.isBusy() && TimerScore.seconds()>1.5  && linkageSlides.currentStatus == LinkageSlidesController.LinkageSlidesStatus.HIGH_RUNG_SCORE)
                     {
+                        TimerLeave.reset();
                         follower.followPath(park);
                     }
 
+                    break;
+                }
+                case BASKET_INTER:
+                {
+                    if(TimerLeave.seconds()>1)
+                    {
+                        follower.holdPoint(basketPoseInter);
+                        status=BASKET;
+                    }
+                    break;
+                }
+                case BASKET:
+                {
+                    if(follower.getPose().getY()>basketPoseInter.getY()-2)
+                    {
+                        follower.holdPoint(basketPose);
+                        status=END_AUTO;
+                    }
                     break;
                 }
                 case FAILSAFE_BACK:
@@ -628,6 +664,7 @@ public class AutoSpecimenPush extends LinearOpMode {
                         case 1:
                         {
                             follower.followPath(failsafe1_back);
+                            TimerLeave.reset();
                             status = FAILSAFE_FORTH;
                             break;
                         }
@@ -695,8 +732,10 @@ public class AutoSpecimenPush extends LinearOpMode {
             clawRotate.update(claw_rotate_target, 0);
             scoreSystem.update(robot.encoderClaw.getVoltage());
             follower.update();
+            brake.update();
             linkageSlides.update();
             telemetry.addData("status", status);
+            telemetry.addData("follower busy", follower.isBusy());
             telemetry.addData("slidescurrent", slides_current_position);
             telemetry.addData("clawposition",clawPosition.currentStatus);
             telemetry.addData("scoresysten",scoreSystem.currentStatus);

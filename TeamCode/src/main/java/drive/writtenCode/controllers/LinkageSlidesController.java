@@ -93,8 +93,8 @@ public class LinkageSlidesController
                 }
                 case INIT_INTER_RUNG:
                 {
-                    slidesController.currentStatus= SlidesController.SlidesStatus.INIT;
-                    if(timer_inter.seconds()>0.35)
+                    slidesController.currentStatus= SlidesController.SlidesStatus.AUTO;
+                    if(timer_inter.seconds()>0.55)
                     {
                         currentStatus=INIT;
                     }
@@ -146,6 +146,7 @@ public class LinkageSlidesController
                 {
                     slidesController.currentStatus= SlidesController.SlidesStatus.KILL;
                     linkageController.currentStatus= LinkageController.LinkageStatus.KILL;
+                    break;
                 }
                 //                case EXTEND_SLIDES_RUNG:
 //                {

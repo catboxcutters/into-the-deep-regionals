@@ -90,7 +90,7 @@ public class newTeleOp extends LinearOpMode {
         clawController = new ClawController(robot);
         clawPositionController = new ClawPositionController(robot);
         clawRotateController = new ClawRotateController(robot);
-        scoreSystemController = new ScoreSystemController(clawController, clawRotateController, fourbarController, clawPositionController);
+        scoreSystemController = new ScoreSystemController(clawController, clawRotateController, fourbarController, clawPositionController,linkageController);
         linkageSlidesController = new LinkageSlidesController(linkageController, slidesController);
 
         configureMotors();
